@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+
+{% block body %}
+
+<h1>
+    Hello, {{ name }}<br>
+    Your favorite(s) sport(s):
+    {% for sport in sports %}
+     {{ sport }},
+    {% endfor %}
+</h1>
+
+{% endblock %}

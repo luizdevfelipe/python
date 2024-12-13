@@ -2,9 +2,12 @@
 
 {% block body %}
 
-    <form action="/" method="post">
-        <input type="text" autofocus autocomplete="off" name="name" placeholder="Name">
-        <button type="submit">Greet</button>
+    <form action="/sport" method="post">
+        <input type="text" autofocus autocomplete="off" name="name" placeholder="Name" required>       
+            {% for sport in sports %}
+            <input type="checkbox" name="sport" value="{{ sport }}"> {{ sport }}
+            {% endfor %}
+        <button type="submit">Submit</button>
     </form>
 
 {% endblock %}
