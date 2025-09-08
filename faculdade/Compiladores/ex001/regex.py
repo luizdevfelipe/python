@@ -7,28 +7,23 @@ var z = x + y;
 document.write(z);
 """
 
-linhas = codigo_fonte.split()
+palavras_reservadas = ["var", "let", "const", "function", "return", "document"]
+separadores = [";", "(", ")", "{", "}", ","]
 
-positions = []
-for i, linha in enumerate(linhas):
-    if re.search(r";$", linha):
-        linhas[i] = re.sub(r";$", "", linha)
-        positions.append(i+1)
+tokens = re.findall(r"[A-Za-z_]\w*|\d+|[=+\-*/;()]|\.", codigo_fonte)
 
-for pos in reversed(positions):
-    linhas.insert(pos, ";")
-
-for linha in linhas:
-    print(linha, end=" ")
-    if re.search(r"^(var|let|const|document\.write\(.+\));*$", linha):
-        print(" <-- Palavra Reservada")
-    elif re.search(r"^[a-zA-Z_]+\w*$", linha):
-        print(" <-- Identificador")
-    elif re.search(r"^\d+;*$", linha):
-        print(" <-- Literal Numerico")
-    elif re.search(r"^[=+\-*/]$", linha):
-        print(" <-- Operador")
-    elif re.search(r"^;$", linha):
-        print(" <-- Simbolo Separador")
+for token in tokens:
+    if token in palavras_reservadas:
+        print(token, "<-- Palavra Reservada")
+    elif re.match(r"^\d+$", token):
+        print(token, "<-- Literal Numérico")
+    elif re.match(r"^[=+\-*/]$", token):
+        print(token, "<-- Operador")
+    elif token in separadores:
+        print(token, "<-- Separador")
+    elif re.match(r"^[A-Za-z_]\w*$", token):
+        print(token, "<-- Identificador")
+    elif token == ".":
+        print(token, "<-- Operador de Acesso")
     else:
-        print(" <-- Desconhecido")
+        print(token, "<-- Desconhecido")
