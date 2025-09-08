@@ -8,25 +8,22 @@ let nome = "João";
 document.write(z);
 """
 
-palavras_reservadas = ["var", "let", "const", "function", "return", "document", "write"]
-separadores = [";", "(", ")", "{", "}", ","]
-
-tokens = re.findall(r"[A-Za-z_][\wÁ-ý]*|\d+|\"[\wÁ-ý]*\"|[=+\-*\/;()]|\.", codigo_fonte)
+tokens = re.findall(r"[A-Za-z_]\w*|\d+|\"[\wÁ-ý]*\"|[=+\-*\/;()]|\.", codigo_fonte)
 
 for token in tokens:
-    if token in palavras_reservadas:
+    if re.match(r"^var$|^let$|^const$|^function$|^return$|^document$|^write$", token):
         print(token, "<-- Palavra Reservada")
+    elif re.match(r"^[;(),.]$", token):
+        print(token, "<-- Separador")
     elif re.match(r"^\d+$", token):
         print(token, "<-- Literal Numérico")
-    elif re.match(r"^[=+\-*/]$", token):
+    elif re.match(r"^[+\-*/]$", token):
         print(token, "<-- Operador")
-    elif token in separadores:
-        print(token, "<-- Separador")
     elif re.match(r"\"[\wÁ-ý]*\"", token):
         print(token, "<-- Literal String")
     elif re.match(r"^[A-Za-z_]\w*$", token):
         print(token, "<-- Identificador")
-    elif token == ".":
-        print(token, "<-- Operador de Acesso")
+    elif token == "=":
+        print(token, "<-- Símbolo de Atribuição")
     else:
         print(token, "<-- Desconhecido")
