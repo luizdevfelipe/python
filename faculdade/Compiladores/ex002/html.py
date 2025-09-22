@@ -18,19 +18,37 @@ pagina = """
 """
 
 tokens = re.split('\n', pagina)
+nivel = -1
+tipo = 'abertura'
+autocontidas = ['meta', 'img', 'br', 'hr', 'input', 'link']
 
 # Nível | Tag | Atributos (lista) | Styles (lista) | innerHTML (resumo).
-for token in tokens:
-    nivel = len(re.findall(r'   ', token))
+for i, token in enumerate(tokens):
+
     tag = re.findall(r'<\/?([a-z1-6]+)', token)
+
+    if tipo == 'abertura' and len(tag) == 1 and tag[0] not in autocontidas:
+        nivel = nivel + 1
+        tipo = 'abertura'
+    elif tipo == 'abertura' and len(tag) == 1 and tag[0] in autocontidas:
+        nivel = nivel + 1
+        tipo = 'fechamento'
+    elif tipo == 'fechamento' and len(tag) == 1 and tag[0] not in autocontidas:
+        nivel = nivel - 1
+        tipo = 'abertura'
+    
+
     atributos = re.findall(r'([a-z]+)=["\']([\w #-=;]+)["\']', token)
     styles = re.findall(r'([\w-]+: ?[#\w]+;)', token)
-    innerHTML = re.findall(r'>(.+)<\/[a-z1-6]+>', token)[0][0:20] + '...' if re.findall(r'>(.+)<\/[a-z1-6]+>', token) else None
+        
+    innerHTML = re.findall(r'>(.+)<\/[a-z1-6]+>', token)
+    if len(innerHTML) == 0 and i < len(tokens)-1:
+        innerHTML = re.findall(r'([^\s]+)', tokens[i+1])[:3]
     
     if len(tag) > 0:
         print("Nível:", nivel)
         print("Tag:", tag)
         print("Atributos:", atributos)
         print("Styles:", styles)
-        print("innerHTML:", innerHTML)        
+        print("innerHTML:",  ' '.join(innerHTML))        
         print("=-="*30)
