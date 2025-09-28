@@ -10,45 +10,83 @@ pagina = """
     </head>
     <body>
         <h1 id="titulo" style="color: #ff0000; font-size: 24px;">Olá, Mundo!</h1>
-        <p>Este é um parágrafo de exemplo.</p>
-        <img src="imagem.jpg" alt="Imagem de exemplo">
+        <p id="paragrafo">
+            Este é um parágrafo de exemplo.  
+            <img src="imagem.jpg" alt="Imagem de exemplo">
+        </p>
+        <p>Outro parágrafo com <a href="https://www.google.com" >um link</a> embutido.</p>
         <a href='https://www.example.com'>Link para Example.com</a>
     </body>
 </html>
 """
 
-tokens = re.split('\n', pagina)
-nivel = -1
-tipo = 'abertura'
+linhas = re.split('\n', pagina)
+nivel = 0
+
 autocontidas = ['meta', 'img', 'br', 'hr', 'input', 'link']
 
-# Nível | Tag | Atributos (lista) | Styles (lista) | innerHTML (resumo).
-for i, token in enumerate(tokens):
+for i, linha in enumerate(linhas):
+    # Encontra todas as tags na linha
+    tags = re.findall(r'(<\/?[a-z1-6]+)', linha)
 
-    tag = re.findall(r'<\/?([a-z1-6]+)', token)
+    # Somente processa se encontrar tags
+    if len(tags) > 0:
+        # Para cada tag encontrada
+        for tag in tags:
+            # Formata a tag para ter somente o nome
+            testTag = tag.replace('<', '').replace('/', '')
 
-    if tipo == 'abertura' and len(tag) == 1 and tag[0] not in autocontidas:
-        nivel = nivel + 1
-        tipo = 'abertura'
-    elif tipo == 'abertura' and len(tag) == 1 and tag[0] in autocontidas:
-        nivel = nivel + 1
-        tipo = 'fechamento'
-    elif tipo == 'fechamento' and len(tag) == 1 and tag[0] not in autocontidas:
-        nivel = nivel - 1
-        tipo = 'abertura'
-    
+            # Verifica se é de fechamento
+            if re.match(r'<\/[a-z1-6]+', tag):
+                nivel -= 1
+                estado = 'fechamento'
+            # Verifica se é autocontida
+            elif testTag in autocontidas:
+                estado = 'autocontida'
+            # Verifica se é de abertura
+            elif re.match(r'<[a-z1-6]+', tag):
+                estado = 'abertura'
 
-    atributos = re.findall(r'([a-z]+)=["\']([\w #-=;]+)["\']', token)
-    styles = re.findall(r'([\w-]+: ?[#\w]+;)', token)
-        
-    innerHTML = re.findall(r'>(.+)<\/[a-z1-6]+>', token)
-    if len(innerHTML) == 0 and i < len(tokens)-1:
-        innerHTML = re.findall(r'([^\s]+)', tokens[i+1])[:3]
-    
-    if len(tag) > 0:
-        print("Nível:", nivel)
-        print("Tag:", tag)
-        print("Atributos:", atributos)
-        print("Styles:", styles)
-        print("innerHTML:",  ' '.join(innerHTML))        
-        print("=-="*30)
+            # Extrai atributos e styles misturados
+            conteudoTag = re.findall(rf'{tag}([^>]*)>', linha)
+            # Se possuir conteúdo, irá extraí-los
+            if len(conteudoTag) > 0:
+                conteudoTag = conteudoTag[0]
+                atributos = re.findall(r'([a-z]+)=["\']([^"\']+)["\']', conteudoTag)
+                styles = re.findall(r'([\w-]+:\s*[^;]+;)', conteudoTag)
+                # Para cada estilo encontrado, separa por chave e valor atribuindo a um dicionário
+                styles = {k.strip(): v.strip(';') for k, v in (s.split(':') for s in styles)}
+            else:
+                atributos = []
+                styles = {}
+
+            innerHTML = ""
+            if estado == 'abertura':
+                # Tenta pegar conteúdo na mesma linha
+                conteudo = re.findall(rf'<{testTag}[^>]*>(.*?)<\/{testTag}>', linha, flags=re.S)
+                if conteudo:
+                    texto = re.sub(r'\s+', ' ', conteudo[0].strip())
+                    innerHTML = texto[:60]  # resumo até 60 chars
+                else:
+                    # Se não encontrar, acumula linhas seguintes até achar fechamento
+                    innerHTML_acumulado = linha.split('>', 1)[-1]  # pega o que vem depois da abertura
+                    j = i + 1
+                    while j < len(linhas):
+                        if re.search(rf'<\/{testTag}>', linhas[j]):
+                            innerHTML_acumulado += ' ' + re.sub(rf'<\/{testTag}>', '', linhas[j])
+                            break
+                        innerHTML_acumulado += ' ' + linhas[j]
+                        j += 1
+                    innerHTML = re.sub(r'\s+', ' ', innerHTML_acumulado.strip())[:60]
+
+            # imprime
+            print("Nível:", nivel)
+            print("Tag:", tag)
+            print("Atributos:", atributos)
+            print("Styles:", styles)
+            print("innerHTML:", innerHTML)
+            print("=-="*30)
+
+            # só sobe depois de imprimir a abertura
+            if estado == 'abertura':
+                nivel += 1
