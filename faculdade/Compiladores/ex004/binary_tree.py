@@ -145,3 +145,30 @@ class BinarySearchTree:
                 self.right_child.remove_node(self.value, self)
 
             return True
+        
+    def bfs(self):
+        queue = Queue()
+        queue.put(self)
+
+        while not queue.is_empty():
+            current_node = queue.get()
+            print(current_node.value)
+
+            if current_node.left_child:
+                queue.put(current_node.left_child)
+
+            if current_node.right_child:
+                queue.put(current_node.right_child)
+        
+bst = BinarySearchTree(10)
+bst.insert_node(5)
+bst.insert_node(15)
+bst.insert_node(3)
+bst.insert_node(7)
+bst.insert_node(12)
+bst.insert_node(18)
+
+print(bst.find_node(7))  # True
+print(bst.find_node(8))  # False
+
+bst.bfs()  # 10, 5, 15, 3, 7, 12, 18
