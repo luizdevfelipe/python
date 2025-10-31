@@ -15,258 +15,214 @@ class Queue:
             raise IndexError("get from empty queue")
 
 
-class BinaryTree:
-    def __init__(self, value):
-        self.value = value
-        self.left_child = None
-        self.right_child = None
-        self.height = 1  # garantir que todo nó tenha height, evita inconsistências
-
-    def pre_order(self):
-        result = [self.value]
-        if self.left_child:
-            result += self.left_child.pre_order()
-        if self.right_child:
-            result += self.right_child.pre_order()
-        return result
-
-    def in_order(self):
-        result = []
-        if self.left_child:
-            result += self.left_child.in_order()
-        result.append(self.value)
-        if self.right_child:
-            result += self.right_child.in_order()
-        return result
-
-    def post_order(self):
-        result = []
-        if self.left_child:
-            result += self.left_child.post_order()
-        if self.right_child:
-            result += self.right_child.post_order()
-        result.append(self.value)
-        return result
-
-    def bfs(self):
-        queue = Queue()
-        queue.put(self)
-        result = []
-        while not queue.is_empty():
-            current_node = queue.get()
-            result.append(current_node.value)
-            if current_node.left_child:
-                queue.put(current_node.left_child)
-            if current_node.right_child:
-                queue.put(current_node.right_child)
-        return result
-
-    def node_depth(self, node):
-        if node is None:
-            return 0
-        left_depth = self.node_depth(node.left_child)
-        right_depth = self.node_depth(node.right_child)
-        return 1 + max(left_depth, right_depth)
+class TreeNode:
+    def __init__(self, data):
+        self.data = data
+        self.left = None
+        self.right = None
+        self.height = 1
 
 
-class BinarySearchTree(BinaryTree):
-    def __init__(self, value, ignore_duplicates=True):
-        super().__init__(value)
-        self.ignore_duplicates = ignore_duplicates
+def getHeight(node):
+    if not node:
+        return 0
+    return node.height
 
-    def get_height(self, node):
-        if node is None:
-            return 0
-        return getattr(node, 'height', 1)
 
-    def update_height(self, node):
-        node.height = 1 + max(self.get_height(node.left_child), self.get_height(node.right_child))
+def getBalance(node):
+    if not node:
+        return 0
+    return getHeight(node.left) - getHeight(node.right)
 
-    def get_balance(self, node):
-        if node is None:
-            return 0
-        return self.get_height(node.right_child) - self.get_height(node.left_child)
 
-    def rotate_left(self, z):
-        y = z.right_child
-        T2 = y.left_child
-        y.left_child = z
-        z.right_child = T2
-        self.update_height(z)
-        self.update_height(y)
-        return y
+def rightRotate(y):
+    print('Rotate right on node', y.data)
+    x = y.left
+    T2 = x.right
+    x.right = y
+    y.left = T2
+    y.height = 1 + max(getHeight(y.left), getHeight(y.right))
+    x.height = 1 + max(getHeight(x.left), getHeight(x.right))
+    return x
 
-    def rotate_right(self, z):
-        y = z.left_child
-        T3 = y.right_child
-        y.right_child = z
-        z.left_child = T3
-        self.update_height(z)
-        self.update_height(y)
-        return y
 
-    def _rebalance_node(self, node):
-        if node is None:
-            return None
-        self.update_height(node)
-        balance = self.get_balance(node)
+def leftRotate(x):
+    print('Rotate left on node', x.data)
+    y = x.right
+    T2 = y.left
+    y.left = x
+    x.right = T2
+    x.height = 1 + max(getHeight(x.left), getHeight(x.right))
+    y.height = 1 + max(getHeight(y.left), getHeight(y.right))
+    return y
 
-        if balance > 1 and self.get_balance(node.right_child) >= 0:
-            return self.rotate_left(node)
-        if balance > 1 and self.get_balance(node.right_child) < 0:
-            node.right_child = self.rotate_right(node.right_child)
-            return self.rotate_left(node)
-        if balance < -1 and self.get_balance(node.left_child) <= 0:
-            return self.rotate_right(node)
-        if balance < -1 and self.get_balance(node.left_child) > 0:
-            node.left_child = self.rotate_left(node.left_child)
-            return self.rotate_right(node)
+
+def minValueNode(node):
+    current = node
+    while current.left is not None:
+        current = current.left
+    return current
+
+
+def insert(node, data):
+    if not node:
+        return TreeNode(data)
+
+    if data < node.data:
+        node.left = insert(node.left, data)
+    elif data > node.data:
+        node.right = insert(node.right, data)
+
+    # Update the balance factor and balance the tree
+    node.height = 1 + max(getHeight(node.left), getHeight(node.right))
+    balance = getBalance(node)
+
+    # Balancing the tree
+    # Left Left
+    if balance > 1 and getBalance(node.left) >= 0:
+        return rightRotate(node)
+
+    # Left Right
+    if balance > 1 and getBalance(node.left) < 0:
+        node.left = leftRotate(node.left)
+        return rightRotate(node)
+
+    # Right Right
+    if balance < -1 and getBalance(node.right) <= 0:
+        return leftRotate(node)
+
+    # Right Left
+    if balance < -1 and getBalance(node.right) > 0:
+        node.right = rightRotate(node.right)
+        return leftRotate(node)
+
+    return node
+
+
+def delete(node, data):
+    if not node:
         return node
 
-    def balance_tree(self, node=None):
-        """Rebalanceia a subárvore cuja raiz é `node` e retorna a nova raiz dessa subárvore.
+    if data < node.data:
+        node.left = delete(node.left, data)
+    elif data > node.data:
+        node.right = delete(node.right, data)
+    else:
+        if node.left is None:
+            temp = node.right
+            node = None
+            return temp
+        elif node.right is None:
+            temp = node.left
+            node = None
+            return temp
 
-        Se chamado sem argumento, rebalanceia a árvore inteira e retorna a nova raiz.
-        """
-        if node is None:
-            node = self
-        if node is None:
-            return None
+        temp = minValueNode(node.right)
+        node.data = temp.data
+        node.right = delete(node.right, temp.data)
 
-        # recursão post-order para garantir que filhos estejam balanceados antes do pai
-        if node.left_child:
-            node.left_child = self.balance_tree(node.left_child)
-        if node.right_child:
-            node.right_child = self.balance_tree(node.right_child)
+    if node is None:
+        return node
 
-        return self._rebalance_node(node)
+    # Update the balance factor and balance the tree
+    node.height = 1 + max(getHeight(node.left), getHeight(node.right))
+    balance = getBalance(node)
 
-    def insert_node(self, value):
-        # insere e obtém a nova raiz da subárvore (pode mudar)
-        new_root = self._insert_node(self, value)
-        # aplica nova raiz à instância atual (preserva referência externa)
-        if new_root:
-            self.value = new_root.value
-            self.left_child = new_root.left_child
-            self.right_child = new_root.right_child
-            self.height = getattr(new_root, 'height', 1)
+    # Balancing the tree
+    # Left Left
+    if balance > 1 and getBalance(node.left) >= 0:
+        return rightRotate(node)
 
-    def _insert_node(self, node, value):
-        if node is None:
-            return BinarySearchTree(value, ignore_duplicates=self.ignore_duplicates)
+    # Left Right
+    if balance > 1 and getBalance(node.left) < 0:
+        node.left = leftRotate(node.left)
+        return rightRotate(node)
 
-        if value == node.value:
-            if self.ignore_duplicates:
-                return node
-            else:
-                node.value = value
-                return node
+    # Right Right
+    if balance < -1 and getBalance(node.right) <= 0:
+        return leftRotate(node)
 
-        if value < node.value:
-            node.left_child = self._insert_node(node.left_child, value)
-        else:
-            node.right_child = self._insert_node(node.right_child, value)
+    # Right Left
+    if balance < -1 and getBalance(node.right) > 0:
+        node.right = rightRotate(node.right)
+        return leftRotate(node)
 
-        return self._rebalance_node(node)
+    return node
 
-    def insert_many(self, values):
-        for v in values:
-            self.insert_node(v)
 
-    def find_min_value_node(self, node):
-        current = node
-        while current.left_child:
-            current = current.left_child
-        return current
+def preOrderTraversal(node):
+    result = [node.data]
+    if node.left:
+        result += preOrderTraversal(node.left)
+    if node.right:
+        result += preOrderTraversal(node.right)
+    return result
 
-    def remove_node(self, value):
-        new_root = self._remove_node(self, value)
-        if new_root:
-            self.value = new_root.value
-            self.left_child = new_root.left_child
-            self.right_child = new_root.right_child
-            self.height = getattr(new_root, 'height', 1)
-        else:
-            # árvore ficou vazia
-            self.value = None
-            self.left_child = None
-            self.right_child = None
-            self.height = 1
 
-    def _remove_node(self, node, value):
-        if node is None:
-            return node
+def inOrderTraversal(node):
+    result = []
+    if node.left:
+        result += inOrderTraversal(node.left)
+    result.append(node.data)
+    if node.right:
+        result += inOrderTraversal(node.right)
+    return result
 
-        if value < node.value:
-            node.left_child = self._remove_node(node.left_child, value)
-        elif value > node.value:
-            node.right_child = self._remove_node(node.right_child, value)
-        else:
-            if node.left_child is None:
-                return node.right_child
-            elif node.right_child is None:
-                return node.left_child
 
-            temp = self.find_min_value_node(node.right_child)
-            node.value = temp.value
-            node.right_child = self._remove_node(node.right_child, temp.value)
+def postOrderTraversal(node):
+    result = []
+    if node.left:
+        result += postOrderTraversal(node.left)
+    if node.right:
+        result += postOrderTraversal(node.right)
+    result.append(node.data)
+    return result
 
-        return self._rebalance_node(node)
 
-    def is_balanced(self, node=None):
-        if node is None:
-            node = self
+def bfsTraversal(node):
+    if node is None:
+        return
+    result = []
+    queue = Queue()
+    queue.put(node)
+    while not queue.is_empty():
+        current_node = queue.get()
+        result.append(current_node.data)
+        if current_node.left:
+            queue.put(current_node.left)
+        if current_node.right:
+            queue.put(current_node.right)
+    return result
 
-        if node is None:
-            return True
 
-        left_height = self.get_height(node.left_child)
-        right_height = self.get_height(node.right_child)
-
-        if abs(left_height - right_height) > 1:
-            return False
-
-        left_ok = True
-        right_ok = True
-
-        if node.left_child:
-            left_ok = self.is_balanced(node.left_child)
-        if node.right_child:
-            right_ok = self.is_balanced(node.right_child)
-
-        return left_ok and right_ok
-
-    def pretty_print(self, node=None, level=0, prefix="Root: "):
-        if node is None:
-            node = self
-        print("    " * level + prefix + str(node.value))
-        if node.left_child:
-            self.pretty_print(node.left_child, level + 1, prefix="L--- ")
-        if node.right_child:
-            self.pretty_print(node.right_child, level + 1, prefix="R--- ")
+def pretty_print(node=None, level=0, prefix="Root: "):
+    if node is None:
+        return
+    print("    " * level + prefix + str(node.data))
+    if node.left:
+        pretty_print(node.left, level + 1, prefix="L--- ")
+    if node.right:
+        pretty_print(node.right, level + 1, prefix="R--- ")
 
 
 # ============= TESTE =============
+root = None
+letters = [8, 9, 10, 11, 12, 13]
+for letter in letters:
+    root = insert(root, letter)
 
-bst = BinarySearchTree(10)
-vals = [5, 15, 3, 7, 12, 18, 1, 8]
-bst.insert_many(vals)
+print()
+print("*="*20)
 
-print("In-order:", bst.in_order())
-print("Pré-order:", bst.pre_order())
-print("Pós-order:", bst.post_order())
-print("BFS antes do balanceamento explícito:", bst.bfs())
-print("Árvore balanceada?", bst.is_balanced())
-print("\nVisualização antes do balanceamento:")
-bst.pretty_print()
+print('Altura da árvore:', getHeight(root))
+print("In-order:", inOrderTraversal(root))
+print("Pré-order:", preOrderTraversal(root))
+print("Pós-order:", postOrderTraversal(root))
+print("BFS:", bfsTraversal(root))
+pretty_print(root)
 
-# balanceia explicitamente e aplica a nova raiz
-bst.insert_node(2)
-new_root = bst.balance_tree()
+root = insert(root, 10)
 
-print("\nBFS após balanceamento explícito:", new_root.bfs())
-
-new_root.remove_node(3)
-new_root.remove_node(15)
-print("Visualização após apagar e rebalancear nós:")
-new_root.balance_tree().pretty_print()
+print("\nDeletando nó 9:")
+root = delete(root, 9)
+pretty_print(root)
