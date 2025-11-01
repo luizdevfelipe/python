@@ -36,7 +36,7 @@ def getBalance(node):
 
 
 def rightRotate(y):
-    print('Rotate right on node', y.data)
+    print('Rotacao direita em: ', y.data)
     x = y.left
     T2 = x.right
     x.right = y
@@ -47,7 +47,7 @@ def rightRotate(y):
 
 
 def leftRotate(x):
-    print('Rotate left on node', x.data)
+    print('Rotacao esquerda em: ', x.data)
     y = x.right
     T2 = y.left
     y.left = x
@@ -207,22 +207,53 @@ def pretty_print(node=None, level=0, prefix="Root: "):
 
 # ============= TESTE =============
 root = None
-letters = [8, 9, 10, 11, 12, 13]
-for letter in letters:
-    root = insert(root, letter)
+while True:
+    print("""
+Escolha uma opção:
+    1. Inserir nó(s)
+    2. Deletar nó(s)
+    3. Imprimir árvore
+    4. Imprimir árvore em BFS
+    5. Imprimir árvore em ordem
+    6. Imprimir árvore em pré-ordem
+    7. Imprimir árvore em pós-ordem
+    8. Ver altura da árvore
+    9. Ver fator de balanceamento da raiz
+    10. Sair
+    """, end="")
 
-print()
-print("*="*20)
+    choice = input("Opção: ")
+    print()
 
-print('Altura da árvore:', getHeight(root))
-print("In-order:", inOrderTraversal(root))
-print("Pré-order:", preOrderTraversal(root))
-print("Pós-order:", postOrderTraversal(root))
-print("BFS:", bfsTraversal(root))
-pretty_print(root)
-
-root = insert(root, 10)
-
-print("\nDeletando nó 9:")
-root = delete(root, 9)
-pretty_print(root)
+    if choice == "1":
+        while True:
+            try:
+                num = int(input("Digite o valor a ser inserido: (letra para encerrar):  "))
+                root = insert(root, num)
+            except ValueError:
+                break
+    elif choice == "2":
+        while True:
+            try:
+                num = int(input("Digite o valor a ser deletado: (letra para encerrar):  "))
+                root = delete(root, num)
+            except ValueError:
+                break
+    elif choice == "3":
+        pretty_print(root)
+    elif choice == "4":
+        print("BFS:", bfsTraversal(root))
+    elif choice == "5":
+        print("In-order:", inOrderTraversal(root))
+    elif choice == "6":
+        print("Pré-order:", preOrderTraversal(root))
+    elif choice == "7":
+        print("Pós-order:", postOrderTraversal(root))
+    elif choice == "8":
+        print('Altura da árvore:', getHeight(root))
+    elif choice == "9":
+        print('Fator de balanceamento da raiz:', getBalance(root))
+    elif choice == "10":
+        break
+    else:
+        print("Opção inválida.")
