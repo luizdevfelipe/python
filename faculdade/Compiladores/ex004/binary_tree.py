@@ -195,14 +195,13 @@ def bfsTraversal(node):
     return result
 
 
-def pretty_print(node=None, level=0, prefix="Root: "):
-    if node is None:
-        return
-    print("    " * level + prefix + str(node.data))
-    if node.left:
-        pretty_print(node.left, level + 1, prefix="L--- ")
-    if node.right:
-        pretty_print(node.right, level + 1, prefix="R--- ")
+def pretty_print(node=None, prefix="", is_left=True):
+    if node is not None:
+        pretty_print(node.right, prefix + ("│   " if is_left else "    "), False)
+        
+        print(prefix + ("└── " if is_left else "┌── ") + str(node.data))
+
+        pretty_print(node.left, prefix + ("    " if is_left else "│   "), True)
 
 
 # ============= TESTE =============
