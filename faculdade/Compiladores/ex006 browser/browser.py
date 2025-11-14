@@ -26,8 +26,12 @@ nivel = 0
 useless = ['html', 'head', 'meta', 'title', 'body']
 autocontidas = ['meta', 'img', 'br', 'hr', 'input', 'link']
 
+default_styles = {
+    "h1": {"color": "black", "font-size": "24px", "font-weight": "bold", "margin-top": "16px", "margin-bottom": "16px", "font-weight": "bold"},
+    "p": {"color": "black", "font-size": "12px"},
+}
+
 draw_text = ['h1', 'p']
-tipo = "undefined"
 
 # Criar janela principal
 janela = tk.Tk()
@@ -36,7 +40,7 @@ janela.title(title[0])
 janela.geometry("1280x720")
 
 # Criar a área de desenho SE TIVER UM BACKGROUND-COLOR NO BODY DEVE SER APLICADO AQUI
-canvas = tk.Canvas(janela, width=1280, height=720, bg="#e0cece")
+canvas = tk.Canvas(janela, width=1280, height=720, bg="#ffffff")
 canvas.pack()
 
 # CASO BODY TENHA PADDING OU MARGIN DEVE SER SOMADO AQUI JÁ
@@ -51,6 +55,7 @@ for i, linha in enumerate(linhas):
     if len(tags) > 0:
         # Para cada tag encontrada
         for tag in tags:
+            tipo = "undefined"
             # Formata a tag para ter somente o nome
             tagName = tag.replace('<', '').replace('/', '')
 
@@ -87,12 +92,13 @@ for i, linha in enumerate(linhas):
                 atributos = []
                 styles = {}
 
+            
             innerHTML = ""
             if estado == 'abertura':
                 # Tenta pegar conteúdo na mesma linha
                 conteudo = re.findall(rf'<{tagName}[^>]*>(.*?)<\/{tagName}>', linha, flags=re.S)
                 if conteudo:
-                    texto = re.sub(r'\s+', ' ', conteudo[0].strip())
+                    innerHTML = re.sub(r'\s+', ' ', conteudo[0].strip())
                 else:
                     # Se não encontrar, acumula linhas seguintes até achar fechamento
                     innerHTML_acumulado = linha.split('>', 1)[-1]  # pega o que vem depois da abertura
@@ -105,21 +111,50 @@ for i, linha in enumerate(linhas):
                         j += 1
                     innerHTML = re.sub(r'\s+', ' ', innerHTML_acumulado.strip())[:60]
             
-            if tipo == "text":
-                
+            if tipo == "text":                
                 color = styles.get('color', 'black')
-                font = styles.get('font-family', 'Helvetica')
-                size = 24 if styles.get('font-size') == None else styles.get('font-size', 24).replace('px', '')
+                font = styles.get('font-family', 'Times New Roman')
+                size = styles.get('font-size')
+                font_weight = styles.get('font-weight')
+
+                margin_top = styles.get('margin') if styles.get('margin-top') == None else styles.get('margin-top')
+                margin_bottom = styles.get('margin') if styles.get('margin-bottom') == None else styles.get('margin-bottom')
+
+                if margin_top == None and 'margin-top' in default_styles[tagName]:
+                    margin_top = default_styles[tagName]['margin-top'].replace('px', '')
+                if margin_bottom == None and 'margin-bottom' in default_styles[tagName]:
+                    margin_bottom = default_styles[tagName]['margin-bottom'].replace('px', '')
+                
+                margin_top = 0 if margin_top == None else int(margin_top)
+                margin_bottom = 0 if margin_bottom == None else int(margin_bottom)
+
+                if margin_top > 0:
+                    y = y + margin_top
+                
+                if size == None and 'size' in default_styles[tagName]:
+                    size = default_styles[tagName]['font-size']
+                elif size == None:
+                    size = "12px"
+                size = size.replace('px', '')
+
+                if color == None and 'color' in default_styles[tagName]:
+                    color = default_styles[tagName]['color']
+
+                if font_weight == None and 'font-weight' in default_styles[tagName]:
+                    font_weight = default_styles[tagName]['font-weight']
+                if font_weight == None:
+                    font_weight = "normal"
 
                 canvas.create_text(
                     x, y,
                     text=innerHTML,
                     fill=color,
-                    font=(font, size),  # FONTE ESTá COMO H1
+                    font=(font, size, font_weight),  # FONTE ESTá COMO H1
                     anchor="nw"  # âncora canto superior esquerdo
                 )
 
-                y = y + 24
+                y = y + int(size) + margin_bottom
+                x = x
 
             # imprime
             print("Nível:", nivel)
