@@ -1,5 +1,39 @@
 import re
+import os 
 import tkinter as tk
+from PIL import Image, ImageTk
+
+
+def getMarginTopAndBottom(styles):
+    margin_top = styles.get('margin') if styles.get('margin-top') == None else styles.get('margin-top')
+    margin_bottom = styles.get('margin') if styles.get('margin-bottom') == None else styles.get('margin-bottom')
+    return margin_top, margin_bottom
+
+
+def getDefaultsMargins(default_styles, tagName):
+    margin_bottom = margin_top = 0
+    if 'margin-top' in default_styles[tagName]:
+        margin_top = default_styles[tagName]['margin-top'].replace('px', '')
+    if 'margin-bottom' in default_styles[tagName]:
+        margin_bottom = default_styles[tagName]['margin-bottom'].replace('px', '')
+    return margin_top, margin_bottom 
+
+
+def handleAndReturnMargins(tagName, styles, default_styles, prev_margin_bottom):
+    margin_top, margin_bottom = getMarginTopAndBottom(styles)
+
+    if default_styles != None and (margin_top == None or margin_bottom == None):
+        margin_top, margin_bottom = getDefaultsMargins(default_styles, tagName)
+    
+    margin_top = 0 if margin_top == None else int(margin_top)
+    margin_bottom = 0 if margin_bottom == None else int(margin_bottom)
+
+    if prev_margin_bottom != 0:
+        margin_top = abs(prev_margin_bottom - margin_top)
+
+    return margin_top, margin_bottom
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
 pagina = """
 <!DOCTYPE html>
@@ -23,12 +57,13 @@ pagina = """
 linhas = re.split('\n', pagina)
 nivel = 0
 
-useless = ['html', 'head', 'meta', 'title', 'body']
+useless = ['html', 'head', 'meta', 'title']
 autocontidas = ['meta', 'img', 'br', 'hr', 'input', 'link']
 
 default_styles = {
+    "body": {"margin": "8px"},
     "h1": {"color": "black", "font-size": "24px", "font-weight": "bold", "margin-top": "16px", "margin-bottom": "16px", "font-weight": "bold"},
-    "p": {"color": "black", "font-size": "12px"},
+    "p": {"color": "black", "font-size": "12px", "margin-top": "16px", "margin-bottom": "16px"},
 }
 
 draw_text = ['h1', 'p']
@@ -44,8 +79,9 @@ canvas = tk.Canvas(janela, width=1280, height=720, bg="#ffffff")
 canvas.pack()
 
 # CASO BODY TENHA PADDING OU MARGIN DEVE SER SOMADO AQUI JÁ
-x = 0
+x = int(default_styles['body']['margin'].replace('px', ''))
 y = 0
+prev_margin_bottom = int(default_styles['body']['margin'].replace('px', ''))
 
 for i, linha in enumerate(linhas):
     # Encontra todas as tags na linha
@@ -68,6 +104,8 @@ for i, linha in enumerate(linhas):
             # Verifica se é autocontida
             elif tagName in autocontidas:
                 estado = 'autocontida'
+                if tagName == 'img':
+                    tipo = "img"
             # Verifica se é de abertura
             elif re.match(r'<[a-z1-6]+', tag):
                 estado = 'abertura'
@@ -79,7 +117,7 @@ for i, linha in enumerate(linhas):
             # Se possuir conteúdo, irá extraí-los
             if len(conteudoTag) > 0:
                 conteudoTag = conteudoTag[0]
-                atributos = re.findall(r'([a-z]+)=["\']([^"\']+)["\']', conteudoTag)
+                atributos_regex = re.findall(r'([a-z]+)=["\']([^"\']+)["\']', conteudoTag)
                 styles_regex = re.findall(r'([\w-]+:\s*[^;]+;)', conteudoTag)
                 # Para cada estilo encontrado, separa por chave e valor atribuindo a um dicionário
                 styles = {}
@@ -88,6 +126,9 @@ for i, linha in enumerate(linhas):
                     key = key.strip()
                     value = value.strip().strip(';')
                     styles[key] = value
+                atributos = {}
+                for item in atributos_regex:
+                    atributos[item[0]] = item[1]
             else:
                 atributos = []
                 styles = {}
@@ -117,20 +158,14 @@ for i, linha in enumerate(linhas):
                 size = styles.get('font-size')
                 font_weight = styles.get('font-weight')
 
-                margin_top = styles.get('margin') if styles.get('margin-top') == None else styles.get('margin-top')
-                margin_bottom = styles.get('margin') if styles.get('margin-bottom') == None else styles.get('margin-bottom')
+                margin_top, margin_bottom = handleAndReturnMargins(tagName, styles, default_styles, prev_margin_bottom)
+                prev_margin_bottom = margin_top
 
-                if margin_top == None and 'margin-top' in default_styles[tagName]:
-                    margin_top = default_styles[tagName]['margin-top'].replace('px', '')
-                if margin_bottom == None and 'margin-bottom' in default_styles[tagName]:
-                    margin_bottom = default_styles[tagName]['margin-bottom'].replace('px', '')
-                
-                margin_top = 0 if margin_top == None else int(margin_top)
-                margin_bottom = 0 if margin_bottom == None else int(margin_bottom)
-
+                # Incrementa o margin em Y
                 if margin_top > 0:
                     y = y + margin_top
-                
+
+                # Faz a validação do font-size, inclusive definindo um padrão quando nulo
                 if size == None and 'size' in default_styles[tagName]:
                     size = default_styles[tagName]['font-size']
                 elif size == None:
@@ -149,12 +184,29 @@ for i, linha in enumerate(linhas):
                     x, y,
                     text=innerHTML,
                     fill=color,
-                    font=(font, size, font_weight),  # FONTE ESTá COMO H1
-                    anchor="nw"  # âncora canto superior esquerdo
+                    font=(font, size, font_weight),
+                    anchor="nw"
                 )
 
-                y = y + int(size) + margin_bottom
-                x = x
+                y = y + int(size)
+
+            elif tipo == "img":
+                margin_top, margin_bottom = handleAndReturnMargins(tagName, styles, None, prev_margin_bottom)
+                prev_margin_bottom = margin_top
+
+                if margin_top > 0:
+                    y = y + margin_top
+
+                caminho_imagem = os.path.join(script_dir, atributos["src"])
+                imagem_original = Image.open(caminho_imagem)
+                largura, altura = imagem_original.size
+                imagem_tk = ImageTk.PhotoImage(imagem_original)
+                canvas.create_image(x, y, image=imagem_tk, anchor="nw")
+                canvas.imagem_tk = imagem_tk
+                y = y + altura
+            
+            #elif tipo == "body":
+
 
             # imprime
             print("Nível:", nivel)
