@@ -8,6 +8,32 @@ from PIL import Image, ImageTk
 def abrirLink(link):
     webbrowser.open(link)
 
+
+def getTextStyles(styles, default_styles, tagName):
+    color = styles.get('color')
+    font = styles.get('font-family', 'Times New Roman')
+    size = styles.get('font-size')
+    font_weight = styles.get('font-weight')
+
+    if tagName in default_styles:
+        if size == None and 'size' in default_styles[tagName]:
+            size = default_styles[tagName]['font-size']
+        if color == None and 'color' in default_styles[tagName]:
+            color = default_styles[tagName]['color']
+        if font_weight == None and 'font-weight' in default_styles[tagName]:
+            font_weight = default_styles[tagName]['font-weight']
+        
+    if size == None:
+        size = "12px"
+    if font_weight == None:
+        font_weight = "normal"
+
+    size = size.replace('px', '')
+    size = int(size)
+
+    return {"color": color, "font-size": size, "font-family": font, "font-weight": font_weight}
+
+
 def getMarginTopAndBottom(styles):
     margin_top = 0 if styles.get('margin-top') == None else styles.get('margin-top').replace('px', '')
     margin_bottom = 0 if styles.get('margin-bottom') == None else styles.get('margin-bottom').replace('px', '')
@@ -16,16 +42,17 @@ def getMarginTopAndBottom(styles):
 
 def getDefaultsMargins(default_styles, tagName):
     bottom = top = left = right = 0
-    if 'margin-top' in default_styles[tagName]:
-        top = default_styles[tagName]['margin-top'].replace('px', '')
-    if 'margin-bottom' in default_styles[tagName]:
-        bottom = default_styles[tagName]['margin-bottom'].replace('px', '')
+    if tagName in default_styles:
+        if 'margin-top' in default_styles[tagName]:
+            top = default_styles[tagName]['margin-top'].replace('px', '')
+        if 'margin-bottom' in default_styles[tagName]:
+            bottom = default_styles[tagName]['margin-bottom'].replace('px', '')
 
-    if 'margin' in default_styles[tagName]:
-        top = default_styles[tagName]['margin'].replace('px', '')
-        bottom = default_styles[tagName]['margin'].replace('px', '')
-        left = default_styles[tagName]['margin'].replace('px', '')
-        right = default_styles[tagName]['margin'].replace('px', '')
+        if 'margin' in default_styles[tagName]:
+            top = default_styles[tagName]['margin'].replace('px', '')
+            bottom = default_styles[tagName]['margin'].replace('px', '')
+            left = default_styles[tagName]['margin'].replace('px', '')
+            right = default_styles[tagName]['margin'].replace('px', '')
     return top, bottom, left, right
 
 
@@ -75,15 +102,19 @@ pagina = """
 linhas = re.split('\n', pagina)
 nivel = 0
 after_inline_tag_content = None
+before_inline_tag_x = None
+before_inline_tag_styles = None
 
 useless = ['html', 'head', 'meta', 'title']
 autocontidas = ['meta', 'img', 'br', 'hr', 'input', 'link']
 draw_text = ['h1', 'p']
+block_elements = ['div', 'section', 'body']
 
 default_styles = {
-    "body": {"margin": "8px"},
+    "body": {"margin": "8px", "width": "1280px", "height": "720px"},
     "h1": {"color": "black", "font-size": "24px", "font-weight": "bold", "margin-top": "16px", "margin-bottom": "16px", "font-weight": "bold"},
     "p": {"color": "black", "font-size": "12px", "margin-top": "16px", "margin-bottom": "16px"},
+    "a": {"font-weight": "underline", "color": "blue"}
 }
 
 # Criar janela principal
@@ -130,8 +161,8 @@ for i, linha in enumerate(linhas):
                 estado = 'abertura'
                 if tagName in draw_text:
                     tipo = "text"
-                elif tagName == "body":
-                    tipo = "body"
+                elif tagName in block_elements:
+                    tipo = "block"
                 elif tagName == "a":
                     tipo = "open_link"
 
@@ -177,15 +208,11 @@ for i, linha in enumerate(linhas):
 
                 if tipo == "text" and re.search(r'<a', innerHTML):
                     match = re.match(r'(.*?)<a .*?</a>(.*)', innerHTML)
-                    print(match)
                     innerHTML = match.group(1)
                     after_inline_tag_content = match.group(2)
 
             if tipo == "text":                
-                color = styles.get('color', 'black')
-                font = styles.get('font-family', 'Times New Roman')
-                size = styles.get('font-size')
-                font_weight = styles.get('font-weight')
+                elementStyles = getTextStyles(styles, default_styles, tagName)
 
                 margin_top, margin_bottom, m_le, m_ri = handleAndReturnMargins(tagName, styles, default_styles, prev_margin_bottom)
                 prev_margin_bottom = margin_bottom
@@ -194,37 +221,23 @@ for i, linha in enumerate(linhas):
                 if margin_top > 0:
                     y = y + margin_top
 
-                # Faz a validação do font-size, inclusive definindo um padrão quando nulo
-                if size == None and 'size' in default_styles[tagName]:
-                    size = default_styles[tagName]['font-size']
-                elif size == None:
-                    size = "12px"
-                size = size.replace('px', '')
-                size = int(size)
-
-                if color == None and 'color' in default_styles[tagName]:
-                    color = default_styles[tagName]['color']
-
-                if font_weight == None and 'font-weight' in default_styles[tagName]:
-                    font_weight = default_styles[tagName]['font-weight']
-                if font_weight == None:
-                    font_weight = "normal"
-
                 canvas.create_text(
                     x, y,
                     text=innerHTML,
-                    fill=color,
-                    font=(font, size, font_weight),
+                    fill=elementStyles["color"],
+                    font=(elementStyles["font-family"], elementStyles["font-size"], elementStyles["font-weight"]),
                     anchor="nw"
                 )
                 
                 # Caso tenha uma inline tag, incrementa o x para continuar na mesma linha
                 if after_inline_tag_content != None:
-                    fonte = tkFont.Font(family=font, size=size, weight=font_weight)
+                    fonte = tkFont.Font(family=elementStyles["font-family"], size=elementStyles["font-size"], weight=elementStyles["font-weight"])
                     largura = fonte.measure(innerHTML)
+                    before_inline_tag_x = x
+                    before_inline_tag_styles = elementStyles
                     x = x + largura
                 else:
-                    y = y + size + margin_bottom
+                    y = y + elementStyles["font-size"] + margin_bottom
 
             elif tipo == "img":
                 margin_top, margin_bottom, mb_le, mb_ri = handleAndReturnMargins(tagName, styles, None, prev_margin_bottom)
@@ -242,48 +255,69 @@ for i, linha in enumerate(linhas):
                 y = y + altura + margin_bottom
 
             elif tipo == 'open_link':
-                color = styles.get('color', 'blue')
-                font = styles.get('font-family', 'Times New Roman')
-                size = styles.get('font-size', 12)
-                font_weight = styles.get('font-weight', 'underline')
+                elementStyles = getTextStyles(styles, default_styles, tagName)
                 link = atributos['href']
 
                 texto_id = canvas.create_text(
                     x, y,
                     text=innerHTML,
-                    fill=color,
-                    font=(font, size, font_weight),
+                    fill=elementStyles["color"],
+                    font=(elementStyles["font-family"], elementStyles["font-size"], elementStyles["font-weight"]),
                     anchor="nw"
                 )
                 canvas.tag_bind(texto_id, "<Button-1>", lambda event: abrirLink(link))
-                fonte = tkFont.Font(family=font, size=size, weight='normal')
+                fonte = tkFont.Font(family=elementStyles["font-family"], size=elementStyles["font-size"], weight='normal')
                 largura = fonte.measure(innerHTML)
                 x = x + largura
 
             elif tipo == "close_link":
-                color = styles.get('color', 'black')
-                font = styles.get('font-family', 'Times New Roman')
-                size = styles.get('font-size', 12)
-                font_weight = styles.get('font-weight', 'normal')
-
                 canvas.create_text(
                     x, y,
                     text=after_inline_tag_content,
-                    fill=color,
-                    font=(font, size, font_weight),
+                    fill=before_inline_tag_styles["color"],
+                    font=(before_inline_tag_styles["font-family"], before_inline_tag_styles["font-size"], before_inline_tag_styles["font-weight"]),
                     anchor="nw"
                 )
-                fonte = tkFont.Font(family=font, size=size, weight='normal')
-                largura = fonte.measure(innerHTML)
-                x = x + largura
+                fonte = tkFont.Font(family=before_inline_tag_styles["font-family"], size=before_inline_tag_styles["font-size"], weight='normal')
+                largura = fonte.measure(after_inline_tag_content)
+                x = before_inline_tag_x
+                y = y + before_inline_tag_styles["font-size"]
                 after_inline_tag_content = None
-
-            elif tipo == "body":
-                margin_top, margin_bottom, margin_left, margin_right = handleAndReturnMargins(tagName, styles, default_styles, prev_margin_bottom)
+                before_inline_tag_x = None
+                before_inline_tag_styles = None
                 prev_margin_bottom = margin_bottom
+
+                # Incrementa o margin em Y
                 if margin_top > 0:
                     y = y + margin_top
+
+            elif tipo == "block":
+                elementStyles = getTextStyles(styles, default_styles, tagName)
+
+                back_color = styles.get('background-color', '#ffffff')
+                width = 0 if styles.get('width') == None else int(styles.get('width').replace('px', ''))
+                height = 0 if styles.get('height') == None else int(styles.get('height').replace('px', '') )
+                border_color = styles.get('border-color', back_color)
+                border_width = styles.get('border-width', 0)
+
+                margin_top, margin_bottom, margin_left, margin_right = handleAndReturnMargins(tagName, styles, default_styles, prev_margin_bottom)
+                prev_margin_bottom = margin_bottom
+
+                if margin_top > 0:
+                    y = y + margin_top
+
+                canvas.create_rectangle(x, y, x+width, y+height, fill=back_color, outline=border_color, width=border_width)
+
+                if re.search(r'[<>]+', innerHTML) == None:
+                    canvas.create_text(
+                        x, y,
+                        text=innerHTML,
+                        fill=elementStyles["color"],
+                        font=(elementStyles["font-family"], elementStyles["font-size"], elementStyles["font-weight"]),
+                        anchor="nw"
+                    )
                 x = x + margin_left
+                y = y + height
 
             # imprime
             print("Nível:", nivel)
