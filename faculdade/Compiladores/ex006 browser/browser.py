@@ -1,37 +1,54 @@
 import re
 import os 
+import webbrowser
 import tkinter as tk
+import tkinter.font as tkFont
 from PIL import Image, ImageTk
 
+def abrirLink(link):
+    webbrowser.open(link)
 
 def getMarginTopAndBottom(styles):
-    margin_top = styles.get('margin') if styles.get('margin-top') == None else styles.get('margin-top')
-    margin_bottom = styles.get('margin') if styles.get('margin-bottom') == None else styles.get('margin-bottom')
+    margin_top = 0 if styles.get('margin-top') == None else styles.get('margin-top').replace('px', '')
+    margin_bottom = 0 if styles.get('margin-bottom') == None else styles.get('margin-bottom').replace('px', '')
     return margin_top, margin_bottom
 
 
 def getDefaultsMargins(default_styles, tagName):
-    margin_bottom = margin_top = 0
+    bottom = top = left = right = 0
     if 'margin-top' in default_styles[tagName]:
-        margin_top = default_styles[tagName]['margin-top'].replace('px', '')
+        top = default_styles[tagName]['margin-top'].replace('px', '')
     if 'margin-bottom' in default_styles[tagName]:
-        margin_bottom = default_styles[tagName]['margin-bottom'].replace('px', '')
-    return margin_top, margin_bottom 
+        bottom = default_styles[tagName]['margin-bottom'].replace('px', '')
+
+    if 'margin' in default_styles[tagName]:
+        top = default_styles[tagName]['margin'].replace('px', '')
+        bottom = default_styles[tagName]['margin'].replace('px', '')
+        left = default_styles[tagName]['margin'].replace('px', '')
+        right = default_styles[tagName]['margin'].replace('px', '')
+    return top, bottom, left, right
 
 
 def handleAndReturnMargins(tagName, styles, default_styles, prev_margin_bottom):
-    margin_top, margin_bottom = getMarginTopAndBottom(styles)
+    margin_top = margin_bottom = margin_left = margin_right = 0
 
-    if default_styles != None and (margin_top == None or margin_bottom == None):
-        margin_top, margin_bottom = getDefaultsMargins(default_styles, tagName)
-    
+    if default_styles != None:
+        margin_top, margin_bottom, margin_left, margin_right = getDefaultsMargins(default_styles, tagName)
+
+    mt, mb = getMarginTopAndBottom(styles)
+
+    margin_top = margin_top if mt == 0 else mt
+    margin_bottom = margin_bottom if mb == 0 else mb
+
     margin_top = 0 if margin_top == None else int(margin_top)
     margin_bottom = 0 if margin_bottom == None else int(margin_bottom)
+    margin_left = 0 if margin_left == None else int(margin_left)
+    margin_right = 0 if margin_right == None else int(margin_right)
 
-    if prev_margin_bottom != 0:
-        margin_top = abs(prev_margin_bottom - margin_top)
+    if prev_margin_bottom != 0 and margin_top != 0:
+        margin_top = abs(margin_top - prev_margin_bottom)
 
-    return margin_top, margin_bottom
+    return margin_top, margin_bottom, margin_left, margin_right
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -50,23 +67,24 @@ pagina = """
         </p>
         <img src="exemple.jpg" alt="Imagem de exemplo">
         <p>Outro parágrafo com <a href="https://www.google.com">um link</a> embutido.</p>
+        <div style="background-color: #bebebe; width: 200px; height: 60px; color: red;"> Texto em DIV! </div>
     </body>
 </html>
 """
 
 linhas = re.split('\n', pagina)
 nivel = 0
+after_inline_tag_content = None
 
 useless = ['html', 'head', 'meta', 'title']
 autocontidas = ['meta', 'img', 'br', 'hr', 'input', 'link']
+draw_text = ['h1', 'p']
 
 default_styles = {
     "body": {"margin": "8px"},
     "h1": {"color": "black", "font-size": "24px", "font-weight": "bold", "margin-top": "16px", "margin-bottom": "16px", "font-weight": "bold"},
     "p": {"color": "black", "font-size": "12px", "margin-top": "16px", "margin-bottom": "16px"},
 }
-
-draw_text = ['h1', 'p']
 
 # Criar janela principal
 janela = tk.Tk()
@@ -79,14 +97,13 @@ canvas = tk.Canvas(janela, width=1280, height=720, bg="#ffffff")
 canvas.pack()
 
 # CASO BODY TENHA PADDING OU MARGIN DEVE SER SOMADO AQUI JÁ
-x = int(default_styles['body']['margin'].replace('px', ''))
+x = 0
 y = 0
-prev_margin_bottom = int(default_styles['body']['margin'].replace('px', ''))
+prev_margin_bottom = 0
 
 for i, linha in enumerate(linhas):
     # Encontra todas as tags na linha
     tags = re.findall(r'(<\/?[a-z1-6]+)', linha)
-
     # Somente processa se encontrar tags
     if len(tags) > 0:
         # Para cada tag encontrada
@@ -101,6 +118,8 @@ for i, linha in enumerate(linhas):
             elif re.match(r'<\/[a-z1-6]+', tag):
                 nivel -= 1
                 estado = 'fechamento'
+                if tagName == 'a':
+                    tipo = 'close_link'
             # Verifica se é autocontida
             elif tagName in autocontidas:
                 estado = 'autocontida'
@@ -111,6 +130,10 @@ for i, linha in enumerate(linhas):
                 estado = 'abertura'
                 if tagName in draw_text:
                     tipo = "text"
+                elif tagName == "body":
+                    tipo = "body"
+                elif tagName == "a":
+                    tipo = "open_link"
 
             # Extrai atributos e styles misturados
             conteudoTag = re.findall(rf'{tag}([^>]*)>', linha)
@@ -151,15 +174,21 @@ for i, linha in enumerate(linhas):
                         innerHTML_acumulado += ' ' + linhas[j]
                         j += 1
                     innerHTML = re.sub(r'\s+', ' ', innerHTML_acumulado.strip())[:60]
-            
+
+                if tipo == "text" and re.search(r'<a', innerHTML):
+                    match = re.match(r'(.*?)<a .*?</a>(.*)', innerHTML)
+                    print(match)
+                    innerHTML = match.group(1)
+                    after_inline_tag_content = match.group(2)
+
             if tipo == "text":                
                 color = styles.get('color', 'black')
                 font = styles.get('font-family', 'Times New Roman')
                 size = styles.get('font-size')
                 font_weight = styles.get('font-weight')
 
-                margin_top, margin_bottom = handleAndReturnMargins(tagName, styles, default_styles, prev_margin_bottom)
-                prev_margin_bottom = margin_top
+                margin_top, margin_bottom, m_le, m_ri = handleAndReturnMargins(tagName, styles, default_styles, prev_margin_bottom)
+                prev_margin_bottom = margin_bottom
 
                 # Incrementa o margin em Y
                 if margin_top > 0:
@@ -171,6 +200,7 @@ for i, linha in enumerate(linhas):
                 elif size == None:
                     size = "12px"
                 size = size.replace('px', '')
+                size = int(size)
 
                 if color == None and 'color' in default_styles[tagName]:
                     color = default_styles[tagName]['color']
@@ -187,12 +217,18 @@ for i, linha in enumerate(linhas):
                     font=(font, size, font_weight),
                     anchor="nw"
                 )
-
-                y = y + int(size)
+                
+                # Caso tenha uma inline tag, incrementa o x para continuar na mesma linha
+                if after_inline_tag_content != None:
+                    fonte = tkFont.Font(family=font, size=size, weight=font_weight)
+                    largura = fonte.measure(innerHTML)
+                    x = x + largura
+                else:
+                    y = y + size + margin_bottom
 
             elif tipo == "img":
-                margin_top, margin_bottom = handleAndReturnMargins(tagName, styles, None, prev_margin_bottom)
-                prev_margin_bottom = margin_top
+                margin_top, margin_bottom, mb_le, mb_ri = handleAndReturnMargins(tagName, styles, None, prev_margin_bottom)
+                prev_margin_bottom = margin_bottom
 
                 if margin_top > 0:
                     y = y + margin_top
@@ -203,10 +239,51 @@ for i, linha in enumerate(linhas):
                 imagem_tk = ImageTk.PhotoImage(imagem_original)
                 canvas.create_image(x, y, image=imagem_tk, anchor="nw")
                 canvas.imagem_tk = imagem_tk
-                y = y + altura
-            
-            #elif tipo == "body":
+                y = y + altura + margin_bottom
 
+            elif tipo == 'open_link':
+                color = styles.get('color', 'blue')
+                font = styles.get('font-family', 'Times New Roman')
+                size = styles.get('font-size', 12)
+                font_weight = styles.get('font-weight', 'underline')
+                link = atributos['href']
+
+                texto_id = canvas.create_text(
+                    x, y,
+                    text=innerHTML,
+                    fill=color,
+                    font=(font, size, font_weight),
+                    anchor="nw"
+                )
+                canvas.tag_bind(texto_id, "<Button-1>", lambda event: abrirLink(link))
+                fonte = tkFont.Font(family=font, size=size, weight='normal')
+                largura = fonte.measure(innerHTML)
+                x = x + largura
+
+            elif tipo == "close_link":
+                color = styles.get('color', 'black')
+                font = styles.get('font-family', 'Times New Roman')
+                size = styles.get('font-size', 12)
+                font_weight = styles.get('font-weight', 'normal')
+
+                canvas.create_text(
+                    x, y,
+                    text=after_inline_tag_content,
+                    fill=color,
+                    font=(font, size, font_weight),
+                    anchor="nw"
+                )
+                fonte = tkFont.Font(family=font, size=size, weight='normal')
+                largura = fonte.measure(innerHTML)
+                x = x + largura
+                after_inline_tag_content = None
+
+            elif tipo == "body":
+                margin_top, margin_bottom, margin_left, margin_right = handleAndReturnMargins(tagName, styles, default_styles, prev_margin_bottom)
+                prev_margin_bottom = margin_bottom
+                if margin_top > 0:
+                    y = y + margin_top
+                x = x + margin_left
 
             # imprime
             print("Nível:", nivel)
